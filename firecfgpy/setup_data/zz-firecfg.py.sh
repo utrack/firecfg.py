@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Copyright © 2020-2022 The firecfg.py Authors
 #
@@ -17,16 +17,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# '${!foo}' is a bashism and does not work in e.g. ksh or zsh.
-[ -n "$BASH_VERSION" ] || return 0
-
 __FCP_SYSTEM_OVERRIDES_PREFIX="/etc/firecfg.py/overrides"
 __FCP_USER_OVERRIDES_PREFIX="$HOME/.config/firecfg.py/overrides"
 
 # Prepend $2 to the variable with name $1, if $1 does not already
 # contain $2. $3 is a fallback value for $1.
 __fcp_prepend_env() {
-	[[ ":${!1}:" == *":$2:"* ]] || declare -g "$1=$2:${!1:-$3}"
+    # Use eval to get the value of the variable whose name is in $1
+    eval "current_value=\${$1:-$3}"
+    
+    # Check if the value is already in the variable
+    case ":$current_value:" in
+        *":$2:"*) 
+            # Value already exists, do nothing
+            ;;  
+        *) 
+            # Value doesn't exist, prepend it
+            eval "$1=$2:$current_value"
+            ;;
+    esac
 }
 
 # add system-wide overrides
@@ -35,7 +44,7 @@ __fcp_prepend_env XDG_DATA_DIRS "$__FCP_SYSTEM_OVERRIDES_PREFIX/data" /usr/local
 __fcp_prepend_env XDG_CONFIG_DIRS "$__FCP_SYSTEM_OVERRIDES_PREFIX/config" /etc/xdg
 
 # add user overrides for all regular users
-if [[ ${UID:-$(id -u)} -ge 1000 ]]; then
+if [ "${UID:-$(id -u)}" -ge 1000 ]; then
 	__fcp_prepend_env PATH "$__FCP_USER_OVERRIDES_PREFIX/bin"
 	__fcp_prepend_env XDG_DATA_DIRS "$__FCP_USER_OVERRIDES_PREFIX/data"
 	__fcp_prepend_env XDG_CONFIG_DIRS "$__FCP_USER_OVERRIDES_PREFIX/config"
